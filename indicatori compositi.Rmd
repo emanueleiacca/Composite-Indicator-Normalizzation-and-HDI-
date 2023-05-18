@@ -1,0 +1,86 @@
+---
+title: "presentazione"
+author: "Emanuele Iaccarino"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+illustrare l'effetto della normalizzazione sulle distribuzioni dei singoli indicatori
+```{r}
+set.seed(22)
+
+# Genera i dati
+n <- 100
+exp_data <- rexp(n, rate = 1)
+#La funzione rexp(n, rate) genera un campione di n numeri casuali estratti da una distribuzione esponenziale con parametro di scala rate. La distribuzione esponenziale è una distribuzione di probabilità continua che descrive il tempo tra gli eventi di un processo di Poisson
+norm_data <- rnorm(n, mean = 5, sd = 2)
+#La funzione rnorm(n, mean, sd) genera un campione di n numeri casuali estratti da una distribuzione normale con media mean e deviazione standard sd.
+beta_data <- rbeta(n, shape1 = 2, shape2 = 5)
+#La funzione rbeta(n, shape1, shape2) genera un campione di n numeri casuali estratti da una distribuzione beta con parametri di forma shape1 e shape2. La distribuzione beta è una distribuzione di probabilità continua che descrive la variabilità di una proporzione tra 0 e 1.
+
+data <- data.frame(exp_data, norm_data, beta_data)
+```
+
+```{r}
+# Funzione per standardizzare
+standardize <- function(x) {
+  (x - mean(x)) / sd(x)
+}
+# calcola la media e la deviazione standard del vettore x e restituisce un vettore in cui ogni elemento è standardizzato sottraendo la media e dividendo per la deviazione standard. La standardizzazione trasforma i dati in modo che abbiano una media di zero e una deviazione standard di uno
+
+# Funzione per il rescaling
+rescale <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+#calcola il minimo e il massimo del vettore x e restituisce un nuovo vettore in cui ogni elemento è rescalato in modo che cada tra 0 e 1. La rescalatura trasforma i dati in modo che abbiano la stessa scala di valori
+
+# Funzione per l'indicizzazione
+index <- function(x, base = 100) {
+  (x / mean(x)) * base
+}
+#calcola la media del vettore x e restituisce un nuovo vettore in cui ogni elemento è indicizzato rispetto alla media, moltiplicando ogni elemento per un valore di base specificato. L'indicizzazione trasforma i dati in modo che siano espressi come una deviazione rispetto alla media
+
+#l'obiettivo è rendere comparabili i nostri dati con quelli di altre distribuzioni
+```
+
+```{r}
+# Applica le funzioni di normalizzazione
+data_std <- as.data.frame(apply(data, 2, standardize))
+data_rescaled <- as.data.frame(apply(data, 2, rescale))
+data_indexed <- as.data.frame(apply(data, 2, index))
+```
+
+
+
+```{r}
+library(gridExtra)
+library(ggplot2)
+library(tidyr)
+
+
+plot_distributions <- function(data, title) {
+  # Trasforma le colonne di dati in formato lungo
+  data_long <- pivot_longer(data, cols = c("exp_data", "norm_data", "beta_data"),
+                            names_to = "tipo", values_to = "valore")
+  
+  # Crea il grafico delle distribuzioni
+  ggplot(data_long, aes(x = valore, color = tipo, group = tipo)) +
+    geom_density() +
+    labs(title = title, x = "Valore", y = "Densità") +
+    theme_minimal()
+}
+# Grafici delle distribuzioni originali e normalizzate
+plot_original <- plot_distributions(data, "Distribuzioni originali")
+plot_std <- plot_distributions(data_std, "Distribuzioni standardizzate")
+plot_rescaled <- plot_distributions(data_rescaled, "Distribuzioni riscalate")
+plot_indexed <- plot_distributions(data_indexed, "Distribuzioni indicizzate")
+
+# Visualizza i grafici
+grid.arrange(plot_original, plot_std, plot_rescaled, plot_indexed, ncol = 2)
+```
+La standardizzazione 'centra' le distribuzioni degli indicatori attorno all'origine (media = 0) e le 'allunga' o 'accorcia' in modo che abbiano la stessa variabilità (varianza = 1).
+La rescaling rende le varianze più omogenee, portando tutti i valori in un intervallo comune. Tuttavia, le distribuzioni degli indicatori non sono 'centrate' e ciò comporta la perdita di un valore di riferimento comune, come la media. Ciò significa che valori normalizzati uguali possono corrispondere a valori originali molto diversi.
+L'indicizzazione con la media come base impostata a 100 'centra' tutte le distribuzioni attorno alla media, ma non 'normalizza' la loro variabilità. Gli indicatori indicizzati hanno gli stessi coefficienti di variazione degli indicatori originali.
